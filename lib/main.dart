@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:picsart_clone/drawpad/drawpad.dart';
+import 'package:picsart_clone/drawpad/image_editor.dart';
 
 void main() {
   runApp(_MyApp());
@@ -16,7 +17,11 @@ class _MyApp extends StatelessWidget {
         primarySwatch: Colors.indigo,
         visualDensity: VisualDensity.adaptivePlatformDensity,
       ),
-      home: DrawPad(),
+      initialRoute: DrawPad.routeName,
+      routes: {
+        DrawPad.routeName: (_) => DrawPad(),
+        ImageEditor.routeName: (_) => ImageEditor(),
+      },
     );
   }
 }
