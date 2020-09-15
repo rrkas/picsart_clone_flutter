@@ -3,6 +3,7 @@ import 'dart:math';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_animated_dialog/flutter_animated_dialog.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:flutter_icons/flutter_icons.dart';
 import 'package:picsart_clone/drawpad/draw_painter.dart';
@@ -10,14 +11,16 @@ import 'package:picsart_clone/drawpad/draw_point.dart';
 import 'package:rxdart/rxdart.dart';
 
 class DrawPad extends StatefulWidget {
+  static const routeName = '/drawpad';
+
   @override
   _DrawPadState createState() => _DrawPadState();
 }
 
 class _DrawPadState extends State<DrawPad> {
-  Queue<List<DrawPoint>> allPoints = Queue();
+  List<DrawPoint> allPoints = [];
   Queue<List<DrawPoint>> layers = Queue();
-  final pointsStream = BehaviorSubject<Queue<List<DrawPoint>>>();
+  final pointsStream = BehaviorSubject<List<DrawPoint>>();
   GlobalKey key = GlobalKey();
   double strokeWidth = 5;
   Color strokeColor = Colors.blue;
@@ -27,6 +30,7 @@ class _DrawPadState extends State<DrawPad> {
     Icons.brush, //solid, rounded edges
     Icons.edit, //solid, no rounded edges
     MaterialCommunityIcons.spray, //blur lines, dotted lines
+    FlutterIcons.rectangle_outline_mco, //draw shapes
   ];
 
   @override
@@ -41,14 +45,10 @@ class _DrawPadState extends State<DrawPad> {
       appBar: AppBar(
         title: Text('Draw Pad'),
         actions: [
-//          IconButton(icon: Icon(Icons.undo), onPressed: undo),
+          IconButton(icon: Icon(Icons.undo), onPressed: undo),
           IconButton(
-            icon: Icon(Icons.clear_all),
-            onPressed: () {
-              allPoints.clear();
-              layers.clear();
-              pointsStream.add(allPoints);
-            },
+            icon: Icon(Icons.clear),
+            onPressed: clearCanvas,
           ),
         ],
       ),
@@ -56,28 +56,15 @@ class _DrawPadState extends State<DrawPad> {
         key: key,
         onPanStart: updateStroke,
         onPanUpdate: updateStroke,
-        onPanEnd: (details) {
-          print('end');
-          if (allPoints.isNotEmpty) {
-            allPoints.addLast(allPoints.last..add(null));
-          }
-          layers.addLast(allPoints.last.where((element) => layers.isEmpty || !layers.last.contains(element)).toList());
-//          if (layers.isNotEmpty && layers.last.isNotEmpty && layers.last.last != null) layers.last.add(null);
-//          allPoints = Queue.from(layers);
-//          pointsStream.add(allPoints);
-          print(allPoints.length);
-          print(layers.length);
-          print(allPoints.last.length);
-          print(layers.last.length);
-        },
+        onPanEnd: endStroke,
         child: Container(
           height: double.infinity,
           width: double.infinity,
-          child: StreamBuilder<Queue<List<DrawPoint>>>(
+          child: StreamBuilder<List<DrawPoint>>(
               stream: pointsStream.stream,
               builder: (context, snapshot) {
                 return CustomPaint(
-                  painter: DrawPainter(snapshot?.data?.isEmpty ?? true ? [] : snapshot.data.last),
+                  painter: DrawPainter(snapshot?.data),
                 );
               }),
         ),
@@ -133,7 +120,7 @@ class _DrawPadState extends State<DrawPad> {
   }
 
   void changeStrokeWidth() {
-    showDialog(
+    showAnimatedDialog(
       context: context,
       builder: (BuildContext context) {
         return StatefulBuilder(builder: (context, setState2) {
@@ -205,7 +192,7 @@ class _DrawPadState extends State<DrawPad> {
   }
 
   void changeStrokeColor() {
-    showDialog(
+    showAnimatedDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
@@ -245,56 +232,49 @@ class _DrawPadState extends State<DrawPad> {
   }
 
   void undo() {
-    setState(() {
-      if (layers.isNotEmpty && layers.length > 1) {
-        print(allPoints.last.length);
-        print(layers.last.length);
-        layers.removeLast();
-        allPoints = Queue();
-        layers.toList().reversed.forEach((element) {
-          print(element.length);
-          allPoints.addLast(element);
-        });
-      } else {
+    if (layers.isNotEmpty) {
+      layers.removeLast();
+      if (layers.isNotEmpty)
+        allPoints = [...layers.last];
+      else
         allPoints.clear();
-        layers.clear();
-      }
-      pointsStream.add(allPoints);
-      if (allPoints.isNotEmpty) {
-        print(allPoints.last.length);
-        print(layers.last.length);
-      }
-    });
-  }
-
-  void updateStroke(details) {
-    RenderBox renderBox = key.currentContext.findRenderObject();
-    if (allPoints.isNotEmpty) {
-      allPoints.addLast([
-        ...allPoints.last
-          ..add(
-            DrawPoint(
-              paint: Paint()
-                ..color = strokeColor
-                ..strokeWidth = strokeWidth
-                ..strokeCap = StrokeCap.round,
-              offset: renderBox.globalToLocal(details.globalPosition),
-            ),
-          )
-      ]);
-    } else {
-      allPoints.addLast([
-        DrawPoint(
-          paint: Paint()
-            ..color = strokeColor
-            ..strokeWidth = strokeWidth
-            ..strokeCap = StrokeCap.round,
-          offset: renderBox.globalToLocal(details.globalPosition),
-        ),
-      ]);
     }
     pointsStream.add(allPoints);
   }
 
-  void changeDrawTool() {}
+  void updateStroke(details) {
+    RenderBox renderBox = key.currentContext.findRenderObject();
+    allPoints.add(
+      DrawPoint(
+        paint: Paint()
+          ..color = strokeColor
+          ..strokeWidth = strokeWidth
+          ..strokeCap = StrokeCap.round,
+        offset: renderBox.globalToLocal(details.globalPosition),
+      ),
+    );
+    pointsStream.add(allPoints);
+  }
+
+  void endStroke(details) {
+    allPoints.add(null);
+    layers.addLast([...allPoints]); //layers.addLast(allPoints); //references the same object, drastic error
+    pointsStream.add(allPoints);
+  }
+
+  void clearCanvas() {
+    allPoints.clear();
+    layers.clear();
+    pointsStream.add(allPoints);
+  }
+
+  void changeDrawTool() {
+    showAnimatedDialog(
+        context: context,
+        builder: (ctx) {
+          return AlertDialog(
+            title: Text('Choose Tool'),
+          );
+        });
+  }
 }

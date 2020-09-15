@@ -13,6 +13,7 @@ dependencies:
   rxdart: ^0.24.1
   flutter_colorpicker: ^0.3.4
   flutter_icons: ^1.1.0
+  flutter_animated_dialog: ^1.1.0
 
 dev_dependencies:
   flutter_test:

@@ -9,6 +9,7 @@ class DrawPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    if (_points == null) return;
     for (var i = 0; i < _points.length - 1; i++) {
       if (_points[i] != null && _points[i + 1] != null) {
         canvas.drawLine(_points[i].offset, _points[i + 1].offset, _points[i].paint);
